@@ -181,9 +181,12 @@ def main():
     # penalty spot scores higher) and pick the physically consistent chain.
     frame_h, frame_w = video_frames[0].shape[:2]
     print("Ball trajectory:")
+    # Ball caches are versioned by detector: when the dedicated ball model
+    # (models/ball.pt) appears, fresh stubs are built automatically.
+    bv = 'v2' if tracker.ball_model is not None else 'v1'
     ball_candidates = tracker.get_ball_candidates(video_frames,
                                                   read_from_stub=True,
-                                                  stub_path='stubs/ball_candidates_v1.pkl')
+                                                  stub_path=f'stubs/ball_candidates_{bv}.pkl')
     tracks["ball"] = tracker.select_ball_trajectory(ball_candidates,
                                                     tracks['players'],
                                                     camera_movement=camera_movement_per_frame,
@@ -196,7 +199,7 @@ def main():
     for _ in range(2):
         ball_candidates = tracker.detect_ball_in_gaps(video_frames, ball_candidates,
                                                       tracks["ball"],
-                                                      stub_path='stubs/ball_gap_candidates_v1.pkl')
+                                                      stub_path=f'stubs/ball_gap_candidates_{bv}.pkl')
         tracks["ball"] = tracker.select_ball_trajectory(ball_candidates,
                                                         tracks['players'],
                                                         camera_movement=camera_movement_per_frame,
@@ -211,7 +214,7 @@ def main():
                                                       tracks["ball"])
     ball_candidates = tracker.detect_ball_tiled(video_frames, ball_candidates,
                                                 tracks["ball"],
-                                                stub_path='stubs/ball_tile_candidates_v1.pkl')
+                                                stub_path=f'stubs/ball_tile_candidates_{bv}.pkl')
     tracks["ball"] = tracker.select_ball_trajectory(ball_candidates,
                                                     tracks['players'],
                                                     camera_movement=camera_movement_per_frame,

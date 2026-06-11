@@ -20,3 +20,6 @@ Cosinus_United_poster.pdf
 
 # Generated fine-tuning dataset (large, regenerable)
 ball_dataset/
+
+ball_only_dataset/
+*.zip

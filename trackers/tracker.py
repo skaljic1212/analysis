@@ -10,8 +10,15 @@ sys.path.append('../')
 from utils import get_center_of_bbox, get_bbox_width, get_foot_position
 
 class Tracker:
-    def __init__(self, model_path):
+    def __init__(self, model_path, ball_model_path='models/ball.pt'):
         self.model = YOLO(model_path)
+        # Optional dedicated ball-only detector (see ball_only_dataset/
+        # README_TRAINING.md). When present it powers the ball-candidate
+        # searches; players/teams/referees stay on the main model.
+        self.ball_model = None
+        if ball_model_path and os.path.exists(ball_model_path):
+            self.ball_model = YOLO(ball_model_path)
+            print(f"Dedicated ball detector loaded: {ball_model_path}")
 
     def add_position_to_tracks(sekf,tracks):
         for object, object_tracks in tracks.items():
@@ -49,9 +56,10 @@ class Tracker:
 
         candidates = []
         batch_size = 20
+        detector = self.ball_model or self.model
         for i in range(0, len(frames), batch_size):
-            batch = self.model.predict(frames[i:i+batch_size], conf=conf,
-                                       iou=0.5, imgsz=1280)
+            batch = detector.predict(frames[i:i+batch_size], conf=conf,
+                                     iou=0.5, imgsz=1280)
             for det in batch:
                 names_inv = {v: k for k, v in det.names.items()}
                 ball_cls = names_inv['ball']
@@ -283,8 +291,9 @@ class Tracker:
         def flush():
             if not batch:
                 return
-            results = self.model.predict(batch, conf=conf, iou=0.5,
-                                         imgsz=640, verbose=False)
+            detector = self.ball_model or self.model
+            results = detector.predict(batch, conf=conf, iou=0.5,
+                                       imgsz=640, verbose=False)
             for det, (fn, x0, y0, key) in zip(results, metas):
                 names_inv = {v: k for k, v in det.names.items()}
                 ball_cls = names_inv['ball']
@@ -440,8 +449,9 @@ class Tracker:
                     y0 = min(r * (th - overlap), h - th)
                     tiles.append(frames[fn][y0:y0 + th, x0:x0 + tw].copy())
                     origins.append((x0, y0))
-            results = self.model.predict(tiles, conf=conf, iou=0.5,
-                                         imgsz=640, verbose=False)
+            detector = self.ball_model or self.model
+            results = detector.predict(tiles, conf=conf, iou=0.5,
+                                       imgsz=640, verbose=False)
             cands = []
             for det, (x0, y0) in zip(results, origins):
                 names_inv = {v: k for k, v in det.names.items()}
