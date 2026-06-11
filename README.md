@@ -1,45 +1,77 @@
-# Football Analysis & Player Rating
+<div align="center">
 
-Turn a raw football match clip into:
+# ⚽ Cosinus United
 
-- an **annotated video** — every player tracked with a stable shirt-style number
-  (team 1 → `1–12`, team 2 → `13–24`, keepers are `1` and `13`), team-colored
-  ellipses, referees marked without numbers, and a marker that stays on the ball
-- a **player rating Excel sheet** — points for every good action, deductions for
-  every bad one, using professional scouting categories (Short/Long pass,
-  Through ball, Challenge, Pressure, Intercept, Close control, Link up,
-  Dribble, Pace), plus a normalized 0–10 rating per role
-- **exported match data** — team ball possession per frame and the definitive
-  player → team roster, as JSON
+### Football Video Analysis & Player Rating Using Computer Vision
 
-Built on YOLO detection + ByteTrack tracking, with heavy post-processing that
-fixes the things raw trackers get wrong: identity swaps after collisions,
-fragmented tracks, ghost double-detections, goalkeeper team assignment, and
-ball/penalty-spot confusion.
+*Practical Application of AI (PAAI) — University of Sarajevo*
+
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)
+![YOLO](https://img.shields.io/badge/YOLO-Ultralytics-00FFFF?logo=yolo&logoColor=black)
+![OpenCV](https://img.shields.io/badge/OpenCV-4.x-5C3EE8?logo=opencv&logoColor=white)
+![License](https://img.shields.io/badge/License-Academic-blue)
+
+</div>
+
+<!-- Poster goes here once finalized:
+<div align="center">
+
+![Project Poster](poster/poster.png)
+
+</div>
+-->
 
 ---
 
-## Quick start
+## 🎯 Overview
+
+**Cosinus United** is a complete, end-to-end computer vision system that turns a raw football match clip into **structured match intelligence**: every player tracked with a stable shirt number, both teams identified, the ball followed through occlusion and motion blur, every pass / duel / dribble detected — and finally a **per-player rating exported to Excel**, graded with professional scouting categories.
+
+> 🥅 **Goal:** Replace hours of manual match analysis with one command — `python main.py` — that produces an annotated video and a ready-to-use player rating sheet.
+
+<div align="center">
+
+![Annotated output](assets/annotated_frame.jpg)
+
+*Annotated output — team-colored ellipses with stable numbers (white team 1–12, green team 13–24), referees unnumbered, ball marker in green.*
+
+</div>
+
+---
+
+## ✨ Key Features
+
+| Feature | Description |
+|---|---|
+| **Detection + Tracking** | Fine-tuned YOLO at 1280px + ByteTrack, with stub caching for instant reruns |
+| **Team Assignment** | SigLIP vision embeddings + KMeans, collision-aware voting, automatic goalkeeper correction |
+| **Stable Identities** | Ghost-track removal, collision ID-swap repair, fragment merging — numbers persist for scoring |
+| **Ball Trajectory** | Full candidate sets, penalty-spot blacklist, physics-gated path selection, template tracking, tiled re-detection |
+| **Event Detection** | Passes (short/long/through), challenges, pressure, interceptions, link-up play, dribbles |
+| **Player Ratings** | A-style accumulated grades (+/− per action) and a role-normalized 0–10 rating, exported to **Excel** |
+| **Manual Overrides** | `team_overrides.json` — fix any team assignment by hand, applied on top of everything |
+| **Match Data Export** | Per-frame possession, team ball control %, definitive player→team roster (JSON) |
+
+---
+
+## 🚀 Quick Start
 
 ```bash
 # 1. Install dependencies (Python 3.10+)
 pip install -r requirements.txt
 
-# 2. Download the large files (too big for GitHub) — see links below
-#    models/best.pt            <- trained YOLO model (players/referees/ball)
-#    input_videos/<clip>.mp4   <- the match clip (set the path in main.py)
+# 2. Download the large files (links below) and place them:
+#    models/best.pt            <- trained YOLO model
+#    input_videos/08fd33_4.mp4 <- sample match clip
 
-# 3. Run
+# 3. Run the full pipeline
 python main.py
 ```
 
-**Everything heavy is cached in `stubs/`** (and the caches for the sample clip
-ship with the repo), so runs take about a minute. Only a *new* video is slow
-the first time (~an hour on CPU: YOLO runs over every frame twice and SigLIP
-classifies the teams) — after that it's cached too. Delete a stub file to
-force that stage to recompute.
+**Everything heavy is cached in `stubs/`** (and the caches for the sample clip ship with this repo), so runs take about a minute. Only a *brand-new* video pays the one-time detection cost (~1 h on CPU, minutes on a GPU) — after that it's cached too.
 
-### Download large files (not in the repo — GitHub size limits)
+### 📥 Download large files (GitHub size limits)
 
 | File | Size | Link |
 |---|---|---|
@@ -47,152 +79,179 @@ force that stage to recompute.
 | `input_videos/08fd33_4.mp4` — sample clip | 19 MB | [Google Drive](https://drive.google.com/file/d/1S80r2fIoa7ZjSjPaWZqK3G5RcZ4tek8H/view?usp=sharing) |
 | `output_videos/output_video.avi` — example result | 66 MB | [Google Drive](https://drive.google.com/file/d/1l0kfQ4lQmeCzMUytLLbtZkYfzBRH_Y14/view?usp=sharing) |
 
-Place each file at the path shown above after downloading.
-
-### Outputs
+### 📦 Outputs
 
 | File | Content |
 |---|---|
 | `output_videos/output_video.avi` | annotated match video |
-| `output_videos/player_ratings.xlsx` | **Ratings** sheet (points, 0–10 rating, category counts, "What They Did") + **Events** sheet (every detected event with frame, time, players, grades) |
+| `output_videos/player_ratings.xlsx` | **Ratings** sheet + **Events** audit sheet |
 | `output_videos/player_ratings.csv` | ratings table as CSV |
-| `output_videos/team_ball_control.json` | possession % + per-frame team in possession |
+| `output_videos/team_ball_control.json` | possession % and per-frame team in possession |
 | `stubs/team_roster_final.json` | definitive player number → team mapping |
 
 ---
 
-## How the pipeline works
+## 🔬 Pipeline
 
 ```
 input video
-   ├─ 1. Detect + track (YOLO @1280px + ByteTrack)          [cached]
-   ├─ 2. Team assignment (SigLIP embeddings + KMeans,
-   │      collision-aware voting, ID-swap detection)         [cached]
-   ├─ 3. Track stabilization
-   │      • remove ghost duplicate tracks (double ellipses)
-   │      • swap back collision ID exchanges
-   │      • merge fragmented tracks (same player, new ID)
-   │      • drop phantom scraps
-   ├─ 4. Goalkeepers: found by position, assigned to the team
-   │      that owns their goal (deepest-defender vote)
-   ├─ 5. Renumber: team 1 → 1-12, team 2 → 13-24 (GK = 1 / 13)
-   ├─ 6. Manual overrides (team_overrides.json)
-   ├─ 7. Positions, camera movement, pitch homography, speed
-   ├─ 8. Ball trajectory
-   │      • ALL ball candidates per frame                    [cached]
-   │      • static-marking blacklist (penalty spot etc.)
-   │      • dynamic-programming path selection
-   │      • zoomed re-detection inside gaps                  [cached]
-   ├─ 9. Possession, events, player ratings  → Excel/CSV
-   └─ 10. Draw (smoothed ellipses) → output video
+   ├─ 1. Detect + track ......... YOLO @1280px + ByteTrack          [cached]
+   ├─ 2. Team assignment ........ SigLIP embeddings + KMeans,
+   │                              collision-aware voting             [cached]
+   ├─ 3. Track stabilization .... ghost dedup · ID-swap repair ·
+   │                              fragment merging · phantom removal
+   ├─ 4. Goalkeepers ............ position detection + deepest-
+   │                              defender goal-ownership vote
+   ├─ 5. Renumbering ............ team 1 → 1-12, team 2 → 13-24
+   ├─ 6. Manual overrides ....... team_overrides.json
+   ├─ 7. Geometry ............... camera motion, pitch homography,
+   │                              speed & distance
+   ├─ 8. Ball trajectory ........ candidates → blacklist → DP path →
+   │                              zoomed/tiled/template recovery     [cached]
+   ├─ 9. Events & ratings ....... possession → events → grades → Excel
+   └─ 10. Render ................ smoothed ellipses → output video
 ```
 
-### Why the unusual parts exist
+### 💡 Key Insight — trackers lie, post-processing fixes them
 
-- **Ball candidates instead of best-per-frame**: the painted penalty spot often
-  out-scores the real ball in YOLO confidence. Keeping only the best detection
-  permanently loses the ball. We keep all candidates and pick the physically
-  consistent path through them.
-- **ID-swap fixing**: when two players collide, ByteTrack often hands each one
-  the other's ID. The team assigner detects mirrored mid-track team flips near
-  a collision and the stabilizer exchanges the underlying track data back.
-- **Goalkeeper voting**: keepers wear different colors than their team, so
-  jersey clustering always misassigns them. Instead, the majority team of the
-  deepest outfield player at each goal (offside logic ⇒ that's a defender)
-  decides which team owns the goal.
+Three problems no off-the-shelf tracker solves out of the box, and how we solved them:
+
+- **The penalty spot out-scores the ball.** YOLO regularly gives the painted spot *higher confidence* than the real ball. Keeping only the best detection per frame loses the ball permanently — so we keep **all** candidates and select the physically consistent path through them with dynamic programming.
+- **Colliding players swap identities.** ByteTrack hands each player the other's ID after a collision. We detect the mirrored mid-track team flips and swap the underlying track data back — each number stays on one player for the whole match.
+- **Goalkeepers fool jersey clustering.** Keepers wear different colors than their own team, so color/embedding methods always misassign them. Instead, the deepest outfield player at each goal (the offside rule guarantees that's a defender) votes for which team owns that goal.
+
+<div align="center">
+
+![Ball tracking](assets/ball_tracking.jpg)
+
+*The ball marker stays locked through chases — 666 of 750 frames are real detections, the rest are momentum-predicted and anchored to players' feet.*
+
+</div>
 
 ---
 
-## Player rating system (`player_rating/`)
+## 📊 Results (sample clip, 750 frames)
 
-Possession → events → movement → grades, using the scouting categorization
-vocabulary. Every action earns an A-style grade in 0.5 steps (good adds, bad
-subtracts), one action can combine categories:
+| Metric | Naive baseline | Final system |
+|---|:---:|:---:|
+| Real ball detections | 377 / 750 | **666 / 750 (89%)** |
+| Longest ball blind-spot | 80 frames | **9 frames (~⅓ s)** |
+| Trajectory jumps > 80 px | 15+ | **1** |
+| Frames stuck on penalty spot | many | **0** |
+| Player identities | 98 fragmented IDs | **23 stable IDs** (11 + 12, one known split) |
+| Referees | mixed into teams | **3, correctly unnumbered** |
+| Team assignment flicker | constant | **zero** (one team per player per match) |
+
+Team ball control on the sample clip: **51.3% vs 48.7%**, with 26 detected events fully auditable in the Excel **Events** sheet (frame number + timestamp each).
+
+---
+
+## 🏅 Player Rating System
+
+Every action earns an A-style grade in 0.5 steps — good actions add, bad subtract, one action can combine categories (professional scouting methodology):
 
 | Category | Grade | Detected as |
-|---|---|---|
+|---|:---:|---|
 | Short pass | +0.5 | completed pass < ~13 m |
 | Long pass | +1.0 | completed pass ≥ ~13 m |
-| Through ball | +1.5 | large forward gain toward opponent goal |
-| Under pressure | +0.5 bonus | opponent at the ball during the pass |
+| Through ball | +1.5 | large forward gain toward the opponent goal |
+| Under pressure | +0.5 | bonus — opponent at the ball during the pass |
 | Failed pass | −0.5 / −1.0 | possession lost via a traveled ball |
-| Intercept | +1.0 | cutting out that pass (always standalone) |
+| Intercept | +1.0 | cutting that pass out (always standalone) |
 | Challenge won / lost | +1.0 / −0.5 | close-range duel (scrambles merge into one) |
-| Won in own third | +0.5 bonus | defensive-zone ball win |
+| Won in own third | +0.5 | bonus — defensive-zone ball win |
 | Pressure | +0.5 | forcing the holder into an error |
 | Close control | +0.5 | clean reception kept under pressure |
-| Link up | +1.0 | reception under pressure + quick lay-off |
+| Link up | +1.0 | receive under pressure + quick lay-off |
 | Dribble / att 1v1 | +1.0 | carrying the ball ≥ ~8 m in one spell |
 | Pace (sprint) | +0.25 | > 20 km/h sustained |
 
-The 0–10 rating normalizes per-minute rates (points, pass accuracy, challenge
-win rate, distance, sprints) **within role groups** (GK / defender /
-midfielder / attacker, inferred from average depth) so keepers aren't compared
-to strikers and short appearances aren't punished.
+The **0–10 rating** normalizes per-minute rates (points, pass accuracy, challenge win rate, distance, sprints) **within role groups** — GK / defender / midfielder / attacker, inferred from average depth — so keepers are never compared to strikers and short appearances aren't punished.
 
-**Everything is tunable** in `player_rating/config.py`: grade values, rating
-weights, and all detection thresholds. Set `debug=True` on `rate_players()` in
-`main.py` (default) to print every event with its frame number for manual
-verification against the video.
+> ⚙️ Every grade value, weight, and threshold lives in [`player_rating/config.py`](player_rating/config.py). Set `debug=True` in `main.py` to print every event with its frame number for manual verification.
 
-> ⚠️ Ratings from a 30-second clip are statistically noisy. They become
-> meaningful with 10+ minutes of footage.
+### 🔧 Fixing mistakes by hand
 
----
-
-## Fixing mistakes by hand
-
-`team_overrides.json` (created automatically in the project root) is applied
-last and wins over everything:
+[`team_overrides.json`](team_overrides.json) is applied last and wins over everything:
 
 ```json
 {
-  "player_teams": { "17": 1 },     // force player 17 (video number) to team 1
-  "swap_goalkeepers": true          // flip both keepers' teams at once
+  "player_teams": { "17": 1 },   // force player 17 (video number) to team 1
+  "swap_goalkeepers": true        // flip both keepers at once
 }
 ```
 
-Edit it and rerun — reruns are fast because classification is cached.
+---
+
+## 📁 Project Structure
+
+```
+analysis/
+├── main.py                        ← pipeline orchestration
+├── trackers/
+│   ├── tracker.py                 ← YOLO+ByteTrack, ball trajectory, drawing
+│   └── track_stabilizer.py        ← dedup, swap-fix, merging, renumbering
+├── team_assigner/
+│   ├── team_assigner_siglip.py    ← SigLIP embedding team classification
+│   ├── team_assigner.py           ← color-clustering fallback
+│   ├── team_roster.py             ← persistent player→team roster
+│   ├── goalkeeper.py              ← GK detection + goal-ownership vote
+│   └── occlusion.py               ← collision-frame detection
+├── player_rating/
+│   ├── config.py                  ← ALL grades, weights, thresholds
+│   ├── possession.py              ← smoothed per-frame possession
+│   ├── events.py                  ← pass/duel/dribble/link-up detection
+│   ├── movement.py                ← distance, sprints (pitch meters)
+│   ├── rating.py                  ← points, roles, 0-10 rating
+│   └── export.py                  ← Excel/CSV export
+├── camera_movement_estimator/     ← optical-flow camera compensation
+├── view_transformer/              ← pixel → pitch-meter homography
+├── speed_and_distance_estimator/  ← per-player speed & distance
+├── player_ball_assigner/          ← ball-to-player assignment
+├── utils/                         ← video & bbox helpers
+├── training/                      ← notebook used to train models/best.pt
+├── stubs/                         ← cached computation (ships with repo)
+├── assets/                        ← README images
+└── requirements.txt
+```
 
 ---
 
-## Project structure
+## ♻️ Reproducibility
 
-```
-main.py                        pipeline orchestration
-trackers/
-  tracker.py                   YOLO+ByteTrack, ball candidates & trajectory,
-                               drawing, bbox smoothing
-  track_stabilizer.py          dedup, swap-fix, fragment merge, renumbering
-team_assigner/
-  team_assigner_siglip.py      SigLIP embedding team classification
-  team_assigner.py             color-clustering fallback
-  team_roster.py               persistent player→team roster (JSON)
-  goalkeeper.py                GK detection + goal-ownership team vote
-  occlusion.py                 bbox-overlap detection (collision frames)
-player_rating/
-  config.py                    ALL grades, weights, thresholds
-  possession.py                smoothed per-frame possession
-  events.py                    pass/duel/dribble/link-up/... detection
-  movement.py                  distance, sprints (pitch meters)
-  rating.py                    points, roles, 0-10 rating
-  export.py                    Excel/CSV export
-camera_movement_estimator/     optical-flow camera compensation
-view_transformer/              pixel → pitch-meter homography
-speed_and_distance_estimator/  per-player speed & distance
-player_ball_assigner/          per-frame ball-to-player assignment
-utils/                         video & bbox helpers
-training/                      notebook used to train models/best.pt
-stubs/                         cached computation (safe to delete)
-```
+- ✅ Deterministic stabilization & renumbering — reruns produce identical player numbers
+- ✅ All heavy computation cached in `stubs/` and shipped with the repo
+- ✅ Fixed random seeds in clustering (KMeans `random_state=0`)
+- ✅ Every detected event traceable to a frame number in the Events sheet
 
-## Notes & limitations
+---
 
-- The pitch homography (`view_transformer`) is calibrated for this camera
-  angle; movement in meters is approximate outside the calibrated zone.
-- One green-team player appears under two numbers (his track broke too
-  severely mid-clip to reconnect safely) — visible as an extra roster entry.
-- Categories needing ball height or human judgment (Aerial, Save, Cross,
-  Shoot, set pieces, On/Off-ball intelligence) are not auto-detected.
-- Model: `models/best.pt` is a YOLO model fine-tuned on the DFL Bundesliga
-  Data Shootout dataset (see `training/`).
+## 🧭 Conclusions & Future Work
+
+**What we learned:**
+- **Post-processing beats raw model power** — the same YOLO model went from losing the ball for seconds to 89% real coverage purely through candidate selection, physics gating, and targeted re-detection.
+- **Identity is the hard part** — detection is easy; keeping number 17 on the same human for 750 frames through collisions and occlusion is where the real engineering went.
+- **Domain priors are free accuracy** — the offside rule assigns goalkeepers, momentum predicts the invisible ball, and "a hidden ball is at someone's feet" fixes wandering markers.
+
+**Next steps:**
+- 🎥 Longer footage — chunked processing for full halves (the current pipeline is RAM-bound to short clips)
+- 🔍 Fine-tune the detector on more labeled ball examples (the remaining ceiling)
+- 👕 Jersey-number OCR for true re-identification after long absences
+- 🥅 Shots, saves, aerials — event types needing goal & ball-height context
+
+---
+
+## 👥 Contributors
+
+| Name | GitHub |
+|---|---|
+| **Tarik Škaljić** | [@skaljic1212](https://github.com/skaljic1212) |
+| **Smajović** | [@asmajovic2](https://github.com/asmajovic2) |
+| **Harun Avdić** | [@harun-avdic](https://github.com/harun-avdic) |
+| **Hamza Bektaš** | [@hbektas1-web](https://github.com/hbektas1-web) |
+
+<div align="center">
+
+*Practical Application of AI · University of Sarajevo · 2026.*
+
+</div>
