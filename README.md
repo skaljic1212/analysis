@@ -48,7 +48,7 @@
 | **Ball Trajectory** | Full candidate sets, penalty-spot blacklist, physics-gated path selection, template tracking, tiled re-detection |
 | **Event Detection** | Passes (short/long/through), challenges, pressure, interceptions, link-up play, dribbles |
 | **Player Ratings** | A-style accumulated grades (+/− per action) and a role-normalized 0–10 rating, exported to **Excel** |
-| **FIFA-style Radar** | Live top-down pitch map of every player + ball, overlaid on the video; goalkeeper-anchored self-calibration |
+| **Tactical Map** | Top-down formation chart of average player positions, goalkeeper-anchored self-calibration |
 | **Manual Overrides** | `team_overrides.json` — fix any team assignment by hand, applied on top of everything |
 | **Match Data Export** | Per-frame possession, team ball control %, definitive player→team roster (JSON) |
 
@@ -108,8 +108,8 @@ input video
    ├─ 8. Ball trajectory ........ candidates → blacklist → DP path →
    │                              zoomed/tiled/template recovery     [cached]
    ├─ 9. Events & ratings ....... possession → events → grades → Excel
-   └─ 10. Render ................ smoothed ellipses + FIFA-style
-                                  radar minimap → output video
+   └─ 10. Render ................ smoothed ellipses → output video
+                                  + top-down formation map
 ```
 
 ### 💡 Key Insight — trackers lie, post-processing fixes them
@@ -156,7 +156,7 @@ Team ball control on the sample clip: **52.1% vs 47.9%**, with 26 detected event
 
 ![Average player positions](assets/player_map.png)
 
-*Average player positions projected onto a top-down pitch — keepers 1 and 13 anchor the projection at their goals. The same map runs live as a radar overlay on the output video.*
+*Average player positions projected onto a top-down pitch — keepers 1 and 13 anchor the projection at their goals.*
 
 </div>
 
@@ -236,7 +236,7 @@ analysis/
 │   ├── movement.py                ← distance, sprints (pitch meters)
 │   ├── rating.py                  ← points, roles, 0-10 rating
 │   └── export.py                  ← Excel/CSV export
-├── pitch_map/                     ← FIFA-style radar / top-down player map
+├── pitch_map/                     ← top-down player map (formation chart)
 ├── camera_movement_estimator/     ← optical-flow camera compensation
 ├── view_transformer/              ← pixel → pitch-meter homography
 ├── speed_and_distance_estimator/  ← per-player speed & distance
