@@ -1,0 +1,5 @@
+{
+  "_help": "Manual team fixes, applied last (they win over all automatic assignment). player_teams maps a player's ID number (shown in the video) to a team: 1 = white, 2 = blue. swap_goalkeepers: true flips both keepers. Example: \"player_teams\": {\"483\": 2}",
+  "player_teams": {},
+  "swap_goalkeepers": false
+}

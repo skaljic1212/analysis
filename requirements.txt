@@ -1,0 +1,21 @@
+# Core detection & tracking
+ultralytics>=8.4          # YOLO inference (players, referees, ball)
+supervision>=0.27         # ByteTrack multi-object tracking
+opencv-python>=4.10       # video I/O, drawing, image ops
+
+# Numerics & data
+numpy>=2.0
+pandas>=2.2
+scipy>=1.10               # PCHIP motion-aware ball interpolation
+scikit-learn>=1.5         # KMeans for team color clustering
+
+# SigLIP team classification (vision embeddings)
+torch>=2.4
+transformers>=4.45
+pillow>=10.0
+
+# Excel export of player ratings
+openpyxl>=3.1
+
+# Optional: only needed if TeamAssignerSiglip(use_umap=True) is used
+# umap-learn>=0.5

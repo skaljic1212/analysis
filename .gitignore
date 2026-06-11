@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+
+# Large model weights (exceed GitHub's 100MB limit — share separately)
+models/*.pt
+
+# Large media and generated outputs
+input_videos/*.mp4
+input_videos/*.avi
+output_videos/*.avi
+output_videos/*.mp4
+
+# OS files
+.DS_Store
+
+
+# Pending: poster will be added after editing
+Cosinus_United_poster.pdf
