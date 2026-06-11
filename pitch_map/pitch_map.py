@@ -1,17 +1,4 @@
-"""
-FIFA-style 2D pitch map (radar) of all players + ball.
 
-Players' foot positions are projected onto a top-down pitch through the
-calibrated homography. The homography is only measured on the central
-strip of the visible pitch, so the projection is self-calibrated along
-the pitch length using the two goalkeepers as anchors: keepers live at
-their goals, which pins the left and right ends of the axis.
-
-Provides:
-  - a clean FIFA-replica pitch image (drawn, not screenshotted)
-  - per-frame radar overlay for the output video
-  - a static average-position map for the README
-"""
 
 import cv2
 import numpy as np
