@@ -246,7 +246,7 @@ analysis/
 | Name | GitHub |
 |---|---|
 | **Tarik Škaljić** | [@skaljic1212](https://github.com/skaljic1212) |
-| **Smajović** | [@asmajovic2](https://github.com/asmajovic2) |
+| **Adin Smajović** | [@asmajovic2](https://github.com/asmajovic2) |
 | **Harun Avdić** | [@harun-avdic](https://github.com/harun-avdic) |
 | **Hamza Bektaš** | [@hbektas1-web](https://github.com/hbektas1-web) |
 
