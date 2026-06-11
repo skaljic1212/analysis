@@ -10,7 +10,7 @@
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)
 ![YOLO](https://img.shields.io/badge/YOLO-Ultralytics-00FFFF?logo=yolo&logoColor=black)
 ![OpenCV](https://img.shields.io/badge/OpenCV-4.x-5C3EE8?logo=opencv&logoColor=white)
-![License](https://img.shields.io/badge/License-Academic-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 </div>
 
@@ -142,7 +142,23 @@ Three problems no off-the-shelf tracker solves out of the box, and how we solved
 | Referees | mixed into teams | **3, correctly unnumbered** |
 | Team assignment flicker | constant | **zero** (one team per player per match) |
 
-Team ball control on the sample clip: **51.3% vs 48.7%**, with 26 detected events fully auditable in the Excel **Events** sheet (frame number + timestamp each).
+<div align="center">
+
+![Ball coverage by stage](assets/ball_coverage.png)
+
+*Each pipeline stage recovers more of the ball — from 50% with naive best-per-frame filtering to 89% real detections.*
+
+</div>
+
+Team ball control on the sample clip: **52.1% vs 47.9%**, with 26 detected events fully auditable in the Excel **Events** sheet (frame number + timestamp each).
+
+<div align="center">
+
+![Possession timeline](assets/possession_timeline.png)
+
+*Possession over time — white dominates the opening build-up, green takes over mid-clip.*
+
+</div>
 
 ---
 
@@ -167,6 +183,14 @@ Every action earns an A-style grade in 0.5 steps — good actions add, bad subtr
 | Pace (sprint) | +0.25 | > 20 km/h sustained |
 
 The **0–10 rating** normalizes per-minute rates (points, pass accuracy, challenge win rate, distance, sprints) **within role groups** — GK / defender / midfielder / attacker, inferred from average depth — so keepers are never compared to strikers and short appearances aren't punished.
+
+<div align="center">
+
+![Player ratings](assets/player_ratings.png)
+
+*Final ratings for the sample clip — every bar traces back to graded, frame-stamped events in the Excel sheet.*
+
+</div>
 
 > ⚙️ Every grade value, weight, and threshold lives in [`player_rating/config.py`](player_rating/config.py). Set `debug=True` in `main.py` to print every event with its frame number for manual verification.
 
@@ -238,6 +262,17 @@ analysis/
 - 🔍 Fine-tune the detector on more labeled ball examples (the remaining ceiling)
 - 👕 Jersey-number OCR for true re-identification after long absences
 - 🥅 Shots, saves, aerials — event types needing goal & ball-height context
+
+---
+
+## 📚 References & Sources
+
+- **Match clip & training data:** [DFL Bundesliga Data Shootout](https://www.kaggle.com/competitions/dfl-bundesliga-data-shootout) (Kaggle) — the sample clip (`08fd33_4.mp4`) and the footage used to fine-tune `models/best.pt` (see [`training/`](training/))
+- **Detection:** [Ultralytics YOLO](https://github.com/ultralytics/ultralytics) — object detection framework; custom model fine-tuned for players, referees and ball
+- **Tracking:** Zhang et al., [*ByteTrack: Multi-Object Tracking by Associating Every Detection Box*](https://arxiv.org/abs/2110.06864) (ECCV 2022), via the [supervision](https://github.com/roboflow/supervision) library
+- **Team classification:** Zhai et al., [*Sigmoid Loss for Language Image Pre-Training*](https://arxiv.org/abs/2303.15343) (SigLIP, ICCV 2023), via Hugging Face [transformers](https://github.com/huggingface/transformers)
+- **Base pipeline:** [abdullahtarek/football_analysis](https://github.com/abdullahtarek/football_analysis) — starting-point tutorial for detection/tracking/homography, since heavily extended (track stabilization, ball trajectory system, goalkeeper logic, player ratings are original work)
+- **Rating methodology:** professional scouting categorization and grading instructions (team-internal documents)
 
 ---
 
