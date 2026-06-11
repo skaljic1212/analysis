@@ -195,6 +195,4 @@ stubs/                         cached computation (safe to delete)
 - Categories needing ball height or human judgment (Aerial, Save, Cross,
   Shoot, set pieces, On/Off-ball intelligence) are not auto-detected.
 - Model: `models/best.pt` is a YOLO model fine-tuned on the DFL Bundesliga
-  Data Shootout dataset (see `training/`). Project originally based on the
-  [abdullahtarek/football_analysis](https://github.com/abdullahtarek/football_analysis)
-  tutorial, since heavily extended.
+  Data Shootout dataset (see `training/`).
