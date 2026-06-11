@@ -17,3 +17,6 @@ output_videos/*.mp4
 
 # Pending: poster will be added after editing
 Cosinus_United_poster.pdf
+
+# Generated fine-tuning dataset (large, regenerable)
+ball_dataset/

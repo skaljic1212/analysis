@@ -269,7 +269,9 @@ analysis/
 
 **Next steps:**
 - 🎥 Longer footage — chunked processing for full halves (the current pipeline is RAM-bound to short clips)
-- 🔍 Fine-tune the detector on more labeled ball examples (the remaining ceiling)
+- 🔍 Fine-tune the detector on its own failures — [`tools/export_ball_dataset.py`](tools/export_ball_dataset.py)
+  exports a self-labeled YOLO dataset (335 auto-labeled frames + the 84 known
+  failure frames for manual ball boxes) with ready-to-run Colab instructions
 - 👕 Jersey-number OCR for true re-identification after long absences
 - 🥅 Shots, saves, aerials — event types needing goal & ball-height context
 
