@@ -14,6 +14,7 @@ from camera_movement_estimator import CameraMovementEstimator
 from view_transformer import ViewTransformer
 from speed_and_distance_estimator import SpeedAndDistance_Estimator
 from player_rating import rate_players
+from pitch_map import PitchMap
 
 
 def main():
@@ -267,6 +268,18 @@ def main():
     # not drawn — they cluttered the video; the underlying data is still
     # computed and available in tracks)
     output_video_frames = tracker.draw_annotations(video_frames, tracks, team_ball_control)
+
+    # FIFA-style radar: top-down pitch map of all players + ball, overlaid
+    # bottom-center. Self-calibrated along the pitch length using the two
+    # goalkeepers as anchors. Also exports the average-position map.
+    pitch_map = PitchMap()
+    gk_pids = {side: pid for side, (pid, _) in gk_result.items()}
+    pitch_map.calibrate(tracks['players'], view_transformer,
+                        gk_left=gk_pids.get('left'), gk_right=gk_pids.get('right'))
+    output_video_frames = pitch_map.overlay_video(output_video_frames, tracks)
+    cv2.imwrite('assets/player_map.png',
+                pitch_map.average_position_map(tracks['players']))
+    print("Pitch map: radar overlaid on video; average-position map saved to assets/player_map.png")
 
     # Save video
     save_video(output_video_frames, 'output_videos/output_video.avi')
