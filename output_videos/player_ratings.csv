@@ -1,24 +1,24 @@
 Player ID,Team,Role,Minutes,Points,Points /10min,Rating (0-10),Pass Accuracy %,Challenge Win %,Short pass,Long pass,Through ball,Under pressure,Failed pass,Intercept,Challenge won,Challenge lost,Won in own third,Pressure,Close control,Link up,Dribble,Pace (sprints),Distance (m),Distance /min,Frames Tracked,What They Did
 13,2,GK,0.17,0.75,43.95,8.25,100.0,,1,0,0,0,0,0,0,0,0,0,0,0,0,1,18.3,107.2,256,1x Short pass; 1x Pace (sprint)
-19,2,attacker,0.5,1.0,20.0,7.63,,100.0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,70.0,140.0,750,1x Challenge won
-20,2,defender,0.5,3.5,70.0,7.39,100.0,100.0,2,0,0,0,0,0,1,0,1,0,0,1,0,0,65.3,130.6,750,2x Short pass; 1x Challenge won; 1x Won in own third; 1x Link up
+19,2,attacker,0.5,1.0,20.0,7.62,,100.0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,70.0,140.0,750,1x Challenge won
 15,2,attacker,0.5,1.5,30.0,6.83,100.0,100.0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,52.5,105.0,750,1x Short pass; 1x Challenge won
-17,2,midfielder,0.5,4.0,80.0,6.5,100.0,100.0,3,0,0,1,0,0,2,0,0,0,0,0,0,0,50.3,100.6,750,3x Short pass; 1x Under pressure; 2x Challenge won
-6,1,defender,0.44,1.75,39.83,5.76,100.0,,1,0,0,0,0,0,0,0,0,0,0,0,1,1,46.8,106.5,659,1x Short pass; 1x Dribble; 1x Pace (sprint)
-16,2,defender,0.42,2.5,59.62,5.6,100.0,,2,0,0,1,0,0,0,0,0,0,0,1,0,0,42.9,102.3,629,2x Short pass; 1x Under pressure; 1x Link up
-2,1,midfielder,0.5,1.0,20.0,5.13,100.0,50.0,1,0,0,0,0,0,1,1,0,0,0,0,0,0,66.6,133.2,750,1x Short pass; 1x Challenge won | bad: 1x Challenge lost
-10,1,midfielder,0.5,1.5,30.0,4.69,100.0,,1,0,0,0,0,0,0,0,0,0,0,0,1,0,59.5,119.0,750,1x Short pass; 1x Dribble
+17,2,midfielder,0.5,3.5,70.0,6.5,100.0,100.0,2,0,0,1,0,0,2,0,0,0,0,0,0,0,50.3,100.6,750,2x Short pass; 1x Under pressure; 2x Challenge won
+6,1,defender,0.44,1.75,39.83,6.1,100.0,,1,0,0,0,0,0,0,0,0,0,0,0,1,1,46.8,106.5,659,1x Short pass; 1x Dribble; 1x Pace (sprint)
+16,2,defender,0.42,2.5,59.62,6.09,100.0,,2,0,0,1,0,0,0,0,0,0,0,1,0,0,42.9,102.3,629,2x Short pass; 1x Under pressure; 1x Link up
+20,2,defender,0.5,2.0,40.0,5.58,100.0,,2,0,0,0,0,0,0,0,0,0,0,1,0,0,65.3,130.6,750,2x Short pass; 1x Link up
+2,1,midfielder,0.5,1.0,20.0,5.25,100.0,50.0,1,0,0,0,0,0,1,1,0,0,0,0,0,0,66.6,133.2,750,1x Short pass; 1x Challenge won | bad: 1x Challenge lost
+10,1,midfielder,0.5,1.5,30.0,4.88,100.0,,1,0,0,0,0,0,0,0,0,0,0,0,1,0,59.5,119.0,750,1x Short pass; 1x Dribble
+4,1,defender,0.5,-0.25,-5.0,4.63,,0.0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,80.7,161.4,750,1x Pace (sprint) | bad: 1x Challenge lost
 14,2,attacker,0.5,0.0,0.0,4.27,,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,61.0,122.0,750,no recorded actions
-4,1,defender,0.5,-0.25,-5.0,3.88,,0.0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,80.7,161.4,750,1x Pace (sprint) | bad: 1x Challenge lost
-18,2,defender,0.5,1.0,20.0,3.53,100.0,,2,0,0,0,0,0,0,0,0,0,0,0,0,0,45.5,91.0,750,2x Short pass
-21,2,midfielder,0.5,1.0,20.0,3.39,100.0,,1,0,0,1,0,0,0,0,0,0,0,0,0,0,52.5,105.0,750,1x Short pass; 1x Under pressure
-3,1,defender,0.5,-0.25,-5.0,3.31,,0.0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,66.2,132.4,750,1x Pace (sprint) | bad: 1x Challenge lost
+11,1,attacker,0.5,0.0,0.0,4.11,,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,59.1,118.7,747,no recorded actions
+3,1,defender,0.5,-0.25,-5.0,4.06,,0.0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,66.2,132.4,750,1x Pace (sprint) | bad: 1x Challenge lost
+18,2,defender,0.5,1.0,20.0,3.72,100.0,,2,0,0,0,0,0,0,0,0,0,0,0,0,0,45.5,91.0,750,2x Short pass
+21,2,midfielder,0.5,1.0,20.0,3.52,100.0,,1,0,0,1,0,0,0,0,0,0,0,0,0,0,52.5,105.0,750,1x Short pass; 1x Under pressure
 5,1,attacker,0.5,0.0,0.0,3.3,,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,50.8,101.6,750,no recorded actions
 9,1,midfielder,0.5,0.0,0.0,3.22,,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,58.2,116.4,750,no recorded actions
 23,2,midfielder,0.49,0.0,0.0,3.13,,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,55.9,115.0,729,no recorded actions
-8,1,defender,0.5,0.0,0.0,3.01,,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,55.9,111.8,750,no recorded actions
-11,1,attacker,0.5,-0.5,-10.04,2.49,,0.0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,59.1,118.7,747,no recorded actions | bad: 1x Challenge lost
-24,2,defender,0.09,0.0,0.0,1.98,,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5.3,59.8,133,no recorded actions
+8,1,defender,0.5,0.0,0.0,3.04,,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,55.9,111.8,750,no recorded actions
+24,2,defender,0.09,0.0,0.0,2.02,,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5.3,59.8,133,no recorded actions
 22,2,midfielder,0.5,0.0,0.0,1.83,,0.0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,53.0,106.0,750,1x Close control | bad: 1x Challenge lost
 1,1,GK,0.16,0.5,31.25,1.75,100.0,,1,0,0,0,0,0,0,0,0,0,0,0,0,0,9.6,60.0,240,1x Short pass
 7,1,attacker,0.5,-0.5,-10.0,1.5,,0.0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,49.0,98.0,750,no recorded actions | bad: 1x Challenge lost

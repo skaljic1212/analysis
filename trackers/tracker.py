@@ -185,6 +185,41 @@ class Tracker:
         except (ValueError, ImportError):
             cx = cx.interpolate().bfill().ffill()
             cy = cy.interpolate().bfill().ffill()
+        # A ball that disappears near players and reappears near players was
+        # hidden between their legs the whole time — it doesn't glide across
+        # open grass. For such gaps, pull the interpolated position toward
+        # the nearest player's feet.
+        def nearest_foot(fn, x, y, radius):
+            best, best_d = None, radius
+            for info in player_tracks[fn].values():
+                b = info['bbox']
+                fx, fy = (b[0] + b[2]) / 2, b[3]
+                d = float(np.hypot(fx - x, fy - y))
+                if d < best_d:
+                    best, best_d = (fx, fy), d
+            return best
+
+        fn0 = 0
+        while fn0 < n:
+            if fn0 in chosen:
+                fn0 += 1
+                continue
+            fn1 = fn0
+            while fn1 < n and fn1 not in chosen:
+                fn1 += 1
+            # gap is [fn0, fn1); check both endpoints sit near a player
+            ends_near = all(
+                e is None or nearest_foot(e, cx[e], cy[e], 110) is not None
+                for e in ((fn0 - 1 if fn0 > 0 else None),
+                          (fn1 if fn1 < n else None)))
+            if ends_near:
+                for fn in range(fn0, fn1):
+                    foot = nearest_foot(fn, cx[fn], cy[fn], 130)
+                    if foot is not None:
+                        cx[fn] = 0.3 * cx[fn] + 0.7 * foot[0]
+                        cy[fn] = 0.3 * cy[fn] + 0.7 * (foot[1] - 8)
+            fn0 = fn1
+
         df['x1'], df['x2'] = cx - w / 2, cx + w / 2
         df['y1'], df['y2'] = cy - h / 2, cy + h / 2
 
@@ -292,6 +327,143 @@ class Tracker:
         augmented = [list(c) for c in candidates]
         for fn, cands in found.items():
             augmented[fn].extend(cands)
+        return augmented
+
+    def track_ball_through_gaps(self, frames, candidates, ball_positions,
+                                search=110, min_score=0.55):
+        """Follow the ball through detection gaps with template matching.
+
+        The ball is a small distinctive white blob; normalized cross-
+        correlation can often follow it through frames where the neural
+        detector fails (motion blur, partial occlusion). Each gap is tracked
+        forward from its last real detection and backward from its next one;
+        a frame is only kept where both directions agree (within 30 px), so
+        a track that drifts onto a sock or line mark gets discarded. Matches
+        are added as low-confidence candidates — the trajectory selector
+        still has the final word.
+        """
+        n = len(ball_positions)
+        detected = [ball_positions[fn][1].get('detected', False) for fn in range(n)]
+
+        def gray_crop(fn, x0, y0, x1, y1):
+            x0, y0 = max(0, int(x0)), max(0, int(y0))
+            x1, y1 = min(frames[fn].shape[1], int(x1)), min(frames[fn].shape[0], int(y1))
+            if x1 - x0 < 4 or y1 - y0 < 4:
+                return None
+            return cv2.cvtColor(frames[fn][y0:y1, x0:x1], cv2.COLOR_BGR2GRAY)
+
+        def track(start_fn, gap_fns):
+            """Track from the real detection at start_fn across gap_fns."""
+            b = ball_positions[start_fn][1]['bbox']
+            cx, cy = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
+            bw = max(8.0, b[2] - b[0]); bh = max(8.0, b[3] - b[1])
+            tpl = gray_crop(start_fn, cx - bw / 2 - 2, cy - bh / 2 - 2,
+                            cx + bw / 2 + 2, cy + bh / 2 + 2)
+            out = {}
+            if tpl is None:
+                return out
+            th, tw = tpl.shape
+            px, py = cx, cy
+            for fn in gap_fns:
+                win = gray_crop(fn, px - search, py - search,
+                                px + search, py + search)
+                if win is None or win.shape[0] < th or win.shape[1] < tw:
+                    break
+                res = cv2.matchTemplate(win, tpl, cv2.TM_CCOEFF_NORMED)
+                _, maxv, _, maxloc = cv2.minMaxLoc(res)
+                if maxv < min_score:
+                    break
+                wx0 = max(0, int(px - search))
+                wy0 = max(0, int(py - search))
+                px = wx0 + maxloc[0] + tw / 2
+                py = wy0 + maxloc[1] + th / 2
+                out[fn] = (px, py, float(maxv), bw, bh)
+            return out
+
+        added = 0
+        augmented = [list(c) for c in candidates]
+        fn0 = 0
+        while fn0 < n:
+            if detected[fn0]:
+                fn0 += 1
+                continue
+            fn1 = fn0
+            while fn1 < n and not detected[fn1]:
+                fn1 += 1
+            gap = list(range(fn0, fn1))
+            fwd = track(fn0 - 1, gap) if fn0 > 0 else {}
+            bwd = track(fn1, gap[::-1]) if fn1 < n else {}
+            for fn in gap:
+                f, bk = fwd.get(fn), bwd.get(fn)
+                if f and bk and np.hypot(f[0] - bk[0], f[1] - bk[1]) <= 30:
+                    x = (f[0] + bk[0]) / 2
+                    y = (f[1] + bk[1]) / 2
+                    bw, bh = f[3], f[4]
+                    augmented[fn].append({
+                        'bbox': [x - bw / 2, y - bh / 2, x + bw / 2, y + bh / 2],
+                        'conf': 0.3 * min(f[2], bk[2])})
+                    added += 1
+            fn0 = fn1
+        print(f"  Ball: template tracking filled {added} gap frames "
+              f"(forward/backward agreement)")
+        return augmented
+
+    def detect_ball_tiled(self, frames, candidates, ball_positions,
+                          stub_path=None, conf=0.03):
+        """Native-resolution tiled detection for frames still missing the ball.
+
+        Splits each missing frame into a 3x2 grid of overlapping tiles run at
+        their natural scale — maximum recall, no dependence on a predicted
+        search window. Cached per frame in stub_path.
+        """
+        gap_fns = [fn for fn in range(len(ball_positions))
+                   if not ball_positions[fn][1].get('detected', True)]
+        if not gap_fns:
+            return candidates
+
+        cache = {}
+        if stub_path is not None and os.path.exists(stub_path):
+            with open(stub_path, 'rb') as f:
+                cache = pickle.load(f)
+
+        h, w = frames[0].shape[:2]
+        cols, rows, overlap = 3, 2, 80
+        tw = (w + (cols - 1) * overlap) // cols
+        th = (h + (rows - 1) * overlap) // rows
+
+        todo = [fn for fn in gap_fns if fn not in cache]
+        for fn in todo:
+            tiles, origins = [], []
+            for r in range(rows):
+                for c in range(cols):
+                    x0 = min(c * (tw - overlap), w - tw)
+                    y0 = min(r * (th - overlap), h - th)
+                    tiles.append(frames[fn][y0:y0 + th, x0:x0 + tw].copy())
+                    origins.append((x0, y0))
+            results = self.model.predict(tiles, conf=conf, iou=0.5,
+                                         imgsz=640, verbose=False)
+            cands = []
+            for det, (x0, y0) in zip(results, origins):
+                names_inv = {v: k for k, v in det.names.items()}
+                ball_cls = names_inv['ball']
+                for box in det.boxes:
+                    if int(box.cls) == ball_cls:
+                        bx = box.xyxy[0].tolist()
+                        cands.append({'bbox': [bx[0] + x0, bx[1] + y0,
+                                               bx[2] + x0, bx[3] + y0],
+                                      'conf': float(box.conf)})
+            cands.sort(key=lambda c: -c['conf'])
+            cache[fn] = cands[:4]
+        if todo and stub_path is not None:
+            with open(stub_path, 'wb') as f:
+                pickle.dump(cache, f)
+
+        recovered = sum(1 for fn in gap_fns if cache.get(fn))
+        print(f"  Ball: tiled detection found candidates in "
+              f"{recovered}/{len(gap_fns)} remaining gap frames")
+        augmented = [list(c) for c in candidates]
+        for fn in gap_fns:
+            augmented[fn].extend(cache.get(fn, []))
         return augmented
 
     def interpolate_player_positions(self, player_tracks, max_gap=10):

@@ -201,6 +201,21 @@ def main():
                                                         camera_movement=camera_movement_per_frame,
                                                         frame_w=frame_w, frame_h=frame_h)
 
+    # Last-resort recovery for the frames that are still blind:
+    # template matching follows the white ball blob through blur the
+    # detector can't handle, and tiled native-resolution detection sweeps
+    # the whole frame. Both only add candidates — the physics-gated
+    # selection still decides what's real.
+    ball_candidates = tracker.track_ball_through_gaps(video_frames, ball_candidates,
+                                                      tracks["ball"])
+    ball_candidates = tracker.detect_ball_tiled(video_frames, ball_candidates,
+                                                tracks["ball"],
+                                                stub_path='stubs/ball_tile_candidates_v1.pkl')
+    tracks["ball"] = tracker.select_ball_trajectory(ball_candidates,
+                                                    tracks['players'],
+                                                    camera_movement=camera_movement_per_frame,
+                                                    frame_w=frame_w, frame_h=frame_h)
+
     # Speed and distance estimator
     speed_and_distance_estimator = SpeedAndDistance_Estimator()
     speed_and_distance_estimator.add_speed_and_distance_to_tracks(tracks)
