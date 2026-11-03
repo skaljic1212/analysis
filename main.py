@@ -1,4 +1,4 @@
-from utils import read_video, save_video
+from utils import read_video, save_video, stream_draw_save
 from trackers import Tracker
 from trackers.track_stabilizer import (fix_swap_pairs, merge_fragmented_tracks,
                                        remove_duplicate_tracks, remove_short_tracks,
@@ -212,6 +212,10 @@ def main():
     # selection still decides what's real.
     ball_candidates = tracker.track_ball_through_gaps(video_frames, ball_candidates,
                                                       tracks["ball"])
+    # Optical-flow (Lucas-Kanade) forward-backward tracking: catches motion blur
+    # the template matcher's cross-correlation flattens out.
+    ball_candidates = tracker.track_ball_optical_flow(video_frames, ball_candidates,
+                                                      tracks["ball"])
     ball_candidates = tracker.detect_ball_tiled(video_frames, ball_candidates,
                                                 tracks["ball"],
                                                 stub_path=f'stubs/ball_tile_candidates_{bv}.pkl')
@@ -267,13 +271,9 @@ def main():
     tracker.add_smoothed_bboxes(tracks['players'])
     tracker.add_smoothed_bboxes(tracks['referees'])
 
-    # Draw output (camera-movement and speed/distance overlays intentionally
-    # not drawn — they cluttered the video; the underlying data is still
-    # computed and available in tracks)
-    output_video_frames = tracker.draw_annotations(video_frames, tracks, team_ball_control)
-
     # Top-down average-position map (formation chart), self-calibrated along
-    # the pitch length using the two goalkeepers as anchors.
+    # the pitch length using the two goalkeepers as anchors. Pixels-free, so
+    # do it before we drop the decoded frames.
     pitch_map = PitchMap()
     gk_pids = {side: pid for side, (pid, _) in gk_result.items()}
     pitch_map.calibrate(tracks['players'], view_transformer,
@@ -282,8 +282,15 @@ def main():
                 pitch_map.average_position_map(tracks['players']))
     print("Pitch map: average-position map saved to assets/player_map.png")
 
-    # Save video
-    save_video(output_video_frames, 'output_videos/output_video.avi')
+    # Draw + save by streaming: free the decoded input, then re-read the source
+    # frame-by-frame, annotate, write, discard. Avoids holding a second full
+    # copy of the (annotated) video in RAM — the old peak that capped clip length.
+    # (camera-movement and speed/distance overlays intentionally not drawn — they
+    # cluttered the video; the data is still computed and available in tracks)
+    del video_frames
+    stream_draw_save(video_path,
+                     lambda frame, i: tracker.draw_frame(frame, tracks, i),
+                     'output_videos/output_video.mp4', fps=fps)
 
 if __name__ == '__main__':
     main()

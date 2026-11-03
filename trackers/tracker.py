@@ -417,6 +417,81 @@ class Tracker:
               f"(forward/backward agreement)")
         return augmented
 
+    def track_ball_optical_flow(self, frames, candidates, ball_positions,
+                                fb_err=2.0, agree=30):
+        """Forward-backward optical-flow ball tracking (Median-Flow style).
+
+        Same forward-backward-agreement idea as track_ball_through_gaps, but the
+        engine is Lucas-Kanade pyramidal optical flow instead of template
+        matching — it follows the ball through motion blur that flattens the
+        template's cross-correlation. The point is tracked forward from the last
+        real detection and backward from the next one; a frame is kept only where
+        the two directions land within `agree` px (their center is the ball).
+        Each LK step also runs its own forward-backward-error check (track the
+        point to the next frame and straight back; discard if it doesn't return
+        within fb_err px), so a point that slips onto grass is dropped. Adds
+        low-confidence candidates only — the trajectory selector has final say.
+        """
+        n = len(ball_positions)
+        detected = [ball_positions[fn][1].get('detected', False) for fn in range(n)]
+        _gray = {}
+        def G(fn):
+            if fn not in _gray:
+                _gray[fn] = cv2.cvtColor(frames[fn], cv2.COLOR_BGR2GRAY)
+            return _gray[fn]
+        lk = dict(winSize=(21, 21), maxLevel=3,
+                  criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 20, 0.03))
+
+        def step(fa, fb, pt):
+            p0 = np.array([[pt]], dtype=np.float32)
+            p1, st, _ = cv2.calcOpticalFlowPyrLK(G(fa), G(fb), p0, None, **lk)
+            if not st[0][0]:
+                return None
+            p0b, stb, _ = cv2.calcOpticalFlowPyrLK(G(fb), G(fa), p1, None, **lk)
+            if not stb[0][0] or np.hypot(*(p0b[0][0] - p0[0][0])) > fb_err:
+                return None  # forward-backward error: unreliable, drop it
+            return tuple(float(v) for v in p1[0][0])
+
+        def track(start_fn, gap_fns):
+            b = ball_positions[start_fn][1]['bbox']
+            pt = ((b[0] + b[2]) / 2, (b[1] + b[3]) / 2)
+            bw, bh = max(8.0, b[2] - b[0]), max(8.0, b[3] - b[1])
+            out, prev_fn = {}, start_fn
+            for fn in gap_fns:
+                nxt = step(prev_fn, fn, pt)
+                if nxt is None:
+                    break
+                pt, prev_fn = nxt, fn
+                out[fn] = (pt[0], pt[1], bw, bh)
+            return out
+
+        added = 0
+        augmented = [list(c) for c in candidates]
+        fn0 = 0
+        while fn0 < n:
+            if detected[fn0]:
+                fn0 += 1
+                continue
+            fn1 = fn0
+            while fn1 < n and not detected[fn1]:
+                fn1 += 1
+            gap = list(range(fn0, fn1))
+            fwd = track(fn0 - 1, gap) if fn0 > 0 else {}
+            bwd = track(fn1, gap[::-1]) if fn1 < n else {}
+            for fn in gap:
+                f, bk = fwd.get(fn), bwd.get(fn)
+                if f and bk and np.hypot(f[0] - bk[0], f[1] - bk[1]) <= agree:
+                    x, y = (f[0] + bk[0]) / 2, (f[1] + bk[1]) / 2
+                    bw, bh = f[2], f[3]
+                    augmented[fn].append({
+                        'bbox': [x - bw / 2, y - bh / 2, x + bw / 2, y + bh / 2],
+                        'conf': 0.3})
+                    added += 1
+            fn0 = fn1
+        print(f"  Ball: optical-flow tracking filled {added} gap frames "
+              f"(forward/backward agreement)")
+        return augmented
+
     def detect_ball_tiled(self, frames, candidates, ball_positions,
                           stub_path=None, conf=0.03):
         """Native-resolution tiled detection for frames still missing the ball.
@@ -668,41 +743,43 @@ class Tracker:
         return frame
 
     def draw_annotations(self, video_frames, tracks, team_ball_control, dim_interpolated=False):
-        output_video_frames = []
-        for frame_num, frame in enumerate(video_frames):
-            frame = frame.copy()
+        # Kept for callers that want the whole list; the streaming draw+save
+        # pass in main.py uses draw_frame directly to avoid a 2nd full-video copy.
+        return [self.draw_frame(f, tracks, i, dim_interpolated)
+                for i, f in enumerate(video_frames)]
 
-            player_dict = tracks["players"][frame_num]
-            ball_dict = tracks["ball"][frame_num]
-            referee_dict = tracks["referees"][frame_num]
+    def draw_frame(self, frame, tracks, frame_num, dim_interpolated=False):
+        frame = frame.copy()
 
-            # Draw Players (smoothed bbox when available, so the ellipse
-            # doesn't jitter with per-frame detection noise)
-            for track_id, player in player_dict.items():
-                color = player.get("team_color", (0, 0, 255))
-                if dim_interpolated and player.get("interpolated", False):
-                    # Half-brightness so interpolated boxes are visually distinct during debugging
-                    color = tuple(c // 2 for c in color)
-                draw_bbox = player.get("bbox_draw", player["bbox"])
-                # Referees (team 0) get an ellipse but never an ID number —
-                # numbers are for players only (they're scored by number).
-                label = None if player.get("team") == 0 else track_id
-                frame = self.draw_ellipse(frame, draw_bbox, color, label)
+        player_dict = tracks["players"][frame_num]
+        ball_dict = tracks["ball"][frame_num]
+        referee_dict = tracks["referees"][frame_num]
 
-                if player.get('has_ball', False):
-                    frame = self.draw_traingle(frame, draw_bbox, (0, 0, 255))
+        # Draw Players (smoothed bbox when available, so the ellipse
+        # doesn't jitter with per-frame detection noise)
+        for track_id, player in player_dict.items():
+            color = player.get("team_color", (0, 0, 255))
+            if dim_interpolated and player.get("interpolated", False):
+                # Half-brightness so interpolated boxes are visually distinct during debugging
+                color = tuple(c // 2 for c in color)
+            draw_bbox = player.get("bbox_draw", player["bbox"])
+            # Referees (team 0) get an ellipse but never an ID number —
+            # numbers are for players only (they're scored by number).
+            label = None if player.get("team") == 0 else track_id
+            frame = self.draw_ellipse(frame, draw_bbox, color, label)
 
-            # Draw Referee
-            for _, referee in referee_dict.items():
-                frame = self.draw_ellipse(frame, referee.get("bbox_draw", referee["bbox"]), (0,255,255))
-            
-            # Draw ball
-            for track_id, ball in ball_dict.items():
-                frame = self.draw_traingle(frame, ball["bbox"],(0,255,0))
+            if player.get('has_ball', False):
+                frame = self.draw_traingle(frame, draw_bbox, (0, 0, 255))
 
-            # Team ball control overlay intentionally not drawn; the
-            # team_ball_control array is still computed in main.py for export.
+        # Draw Referee
+        for _, referee in referee_dict.items():
+            frame = self.draw_ellipse(frame, referee.get("bbox_draw", referee["bbox"]), (0,255,255))
 
-            output_video_frames.append(frame)
+        # Draw ball
+        for track_id, ball in ball_dict.items():
+            frame = self.draw_traingle(frame, ball["bbox"],(0,255,0))
 
-        return output_video_frames
+        # Team ball control overlay intentionally not drawn; the
+        # team_ball_control array is still computed in main.py for export.
+
+        return frame
